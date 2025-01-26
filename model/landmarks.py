@@ -2,6 +2,7 @@ import mediapipe as mp
 import csv
 import os
 import numpy as np
+from sklearn.neighbors import KNeighborsClassifier
 
 class DetectorManos:
     def __init__(self, max_hands=1, detection_confidence=0.7, tracking_confidence=0.7):
@@ -13,6 +14,8 @@ class DetectorManos:
             min_tracking_confidence=tracking_confidence
         )
         self.mp_drawing = mp.solutions.drawing_utils
+        
+        self.knn = None
 
     def detect_landmarks(self, frame):
         results = self.hands.process(frame)
@@ -24,30 +27,6 @@ class DetectorManos:
                     self.mp_hands.HAND_CONNECTIONS
                 )
         return results
-        
-    # def guardar_gesto(self, nombre_gesto, landmarks, archivo_csv):
-    #     """Guarda un nuevo gesto en el archivo CSV."""
-    #     try:
-    #         # Verificar si el archivo existe y crearlo con columnas si no
-    #         if not os.path.exists(archivo_csv):
-    #             with open(archivo_csv, mode='w', newline='') as file:
-    #                 escritor_csv = csv.writer(file)
-    #                 # Escribir columnas del archivo
-    #                 columnas = ['nombre_gesto'] + [f'x{i},y{i},z{i}' for i in range(21)]
-    #                 escritor_csv.writerow(columnas)
-    #             print(f"Archivo {archivo_csv} creado con columnas.")
-
-    #         # Abrir el archivo en modo apéndice para escribir una nueva fila
-    #         with open(archivo_csv, mode='a', newline='') as file:
-    #             escritor_csv = csv.writer(file)
-    #             # Crear la fila con el nombre del gesto y las coordenadas
-    #             fila = [nombre_gesto] + [coord for punto in landmarks for coord in punto]
-    #             print(f"Fila a guardar: {fila}")  # Verificar la fila
-    #             escritor_csv.writerow(fila)  # Escribir la fila
-    #         print(f"Gesto '{nombre_gesto}' guardado exitosamente en {archivo_csv}.")
-    #     except Exception as e:
-    #         print(f"Error al guardar el gesto: {e}")
-    
     
     def guardar_gesto(self, nombre_gesto, landmarks, archivo_csv):
         """Guarda un nuevo gesto en el archivo CSV."""
@@ -111,25 +90,59 @@ class DetectorManos:
         return gestos
 
 
-    def comparar_gesto(self, distancias_detectadas, gestos_guardados, umbral=0.5):
+    # def comparar_gesto(self, distancias_detectadas, gestos_guardados, umbral=0.5):
+    #     """
+    #     Compara el gesto detectado con los gestos guardados y devuelve el nombre del gesto más cercano.
+    #     """
+    #     gesto_reconocido = None
+    #     menor_diferencia = float('inf')  # Inicializar con infinito
+
+    #     for nombre_gesto, distancias_gesto_guardado in gestos_guardados:
+    #         try:
+    #             diferencia = np.linalg.norm(np.array(distancias_detectadas) - np.array(distancias_gesto_guardado))
+    #             print(f"Diferencia con {nombre_gesto}: {diferencia}")
+
+    #             # Si la diferencia es menor al umbral y también la menor hasta ahora
+    #             if diferencia < umbral and diferencia < menor_diferencia:
+    #                 menor_diferencia = diferencia
+    #                 gesto_reconocido = nombre_gesto
+    #         except Exception as e:
+    #             print(f"Error al calcular la diferencia con el gesto '{nombre_gesto}': {e}")
+
+    #     return gesto_reconocido  # Devuelve el nombre del gesto más cercano o None si no se encontró
+
+    def comparar_gesto(self, distancias_detectadas):
         """
-        Compara el gesto detectado con los gestos guardados y devuelve el nombre del gesto más cercano.
+        Usa el clasificador k-NN para predecir el gesto basado en las distancias detectadas.
         """
-        gesto_reconocido = None
-        menor_diferencia = float('inf')  # Inicializar con infinito
+        if self.knn is None:
+            print("El clasificador k-NN no está entrenado.")
+            return None
 
-        for nombre_gesto, distancias_gesto_guardado in gestos_guardados:
-            try:
-                diferencia = np.linalg.norm(np.array(distancias_detectadas) - np.array(distancias_gesto_guardado))
-                print(f"Diferencia con {nombre_gesto}: {diferencia}")
+        try:
+            prediccion = self.knn.predict([distancias_detectadas])  # Predecir la clase del gesto
+            return prediccion[0]
+        except Exception as e:
+            print(f"Error al predecir con k-NN: {e}")
+            return None
 
-                # Si la diferencia es menor al umbral y también la menor hasta ahora
-                if diferencia < umbral and diferencia < menor_diferencia:
-                    menor_diferencia = diferencia
-                    gesto_reconocido = nombre_gesto
-            except Exception as e:
-                print(f"Error al calcular la diferencia con el gesto '{nombre_gesto}': {e}")
+    def entrenar_knn(self, archivo_csv):
+        """
+        Entrena el clasificador k-NN con los gestos guardados en el archivo CSV.
+        """
+        try:
+            gestos = []
+            etiquetas = []
+            with open(archivo_csv, mode='r') as file:
+                lector_csv = csv.reader(file)
+                next(lector_csv)  # Saltar encabezado
+                for fila in lector_csv:
+                    etiquetas.append(fila[0])  # Primera columna es la etiqueta
+                    gestos.append(list(map(float, fila[1:])))  # Distancias como características
 
-        return gesto_reconocido  # Devuelve el nombre del gesto más cercano o None si no se encontró
-
-
+            # Crear y entrenar el clasificador k-NN
+            self.knn = KNeighborsClassifier(n_neighbors=3)  # Usar 3 vecinos como ejemplo
+            self.knn.fit(gestos, etiquetas)
+            print("Clasificador k-NN entrenado con éxito.")
+        except Exception as e:
+            print(f"Error al entrenar el clasificador k-NN: {e}")
