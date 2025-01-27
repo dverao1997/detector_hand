@@ -36,10 +36,7 @@ class MainController:
 
             # Reconocer gesto
             if landmarks:
-                gesto_reconocido = self.detector.comparar_gesto(
-                    landmarks[0],
-                    self.detector.cargar_gestos_guardados("lenguaje_senas.csv")
-                )
+                gesto_reconocido = self.detector.comparar_gesto(landmarks[0])
                 if gesto_reconocido:
                     mensaje = f"Gesto detectado: {gesto_reconocido}"
                 else:

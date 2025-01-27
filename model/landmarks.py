@@ -111,17 +111,28 @@ class DetectorManos:
 
     #     return gesto_reconocido  # Devuelve el nombre del gesto más cercano o None si no se encontró
 
-    def comparar_gesto(self, distancias_detectadas):
+    def comparar_gesto(self, distancias_detectadas, umbral=0.5):
         """
         Usa el clasificador k-NN para predecir el gesto basado en las distancias detectadas.
+        Devuelve el gesto reconocido o 'No reconocido' si la distancia es mayor al umbral.
         """
         if self.knn is None:
             print("El clasificador k-NN no está entrenado.")
             return None
 
         try:
-            prediccion = self.knn.predict([distancias_detectadas])  # Predecir la clase del gesto
-            return prediccion[0]
+            # Obtener el gesto más cercano y su distancia
+            distancias, indices = self.knn.kneighbors([distancias_detectadas], n_neighbors=1)
+            distancia_minima = distancias[0][0]  # Distancia más cercana
+            gesto_reconocido = self.knn.predict([distancias_detectadas])[0]
+
+            print(f"Distancia mínima: {distancia_minima}, Gesto: {gesto_reconocido}")
+
+            # Validar con el umbral
+            if distancia_minima > umbral:
+                return "No reconocido"
+            else:
+                return gesto_reconocido
         except Exception as e:
             print(f"Error al predecir con k-NN: {e}")
             return None
