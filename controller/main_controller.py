@@ -4,7 +4,6 @@ from view.main_window import MainWindow
 
 class MainController:
     def __init__(self, root):
-        print("Controlador inicializado")
         self.root = root
         self.view = MainWindow(root)
         self.detector = DetectorManos()

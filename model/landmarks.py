@@ -149,7 +149,7 @@ class DetectorManos:
                 next(lector_csv)  # Saltar encabezado
                 for fila in lector_csv:
                     etiquetas.append(fila[0])  # Primera columna es la etiqueta
-                    gestos.append(list(map(float, fila[1:])))  # Distancias como características
+                    gestos.append(list(map(float, fila[1:])))
 
             # Crear y entrenar el clasificador k-NN
             self.knn = KNeighborsClassifier(n_neighbors=3)  # Usar 3 vecinos como ejemplo
